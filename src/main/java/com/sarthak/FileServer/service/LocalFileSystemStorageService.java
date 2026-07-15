@@ -13,6 +13,8 @@ import java.nio.file.Path;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
@@ -35,6 +37,8 @@ public class LocalFileSystemStorageService implements StorageService {
   public LocalFileSystemStorageService(FileMetadataRepository fileMetadataRepository) {
     this.fileMetadataRepository = fileMetadataRepository;
   }
+
+  private static final Logger logger = LoggerFactory.getLogger(LocalFileSystemStorageService.class);
 
   @Override
   public FileMetadataResponse uploadFile(MultipartFile file) {
@@ -64,6 +68,7 @@ public class LocalFileSystemStorageService implements StorageService {
     fileMetadata.setUploadDate(Instant.now());
 
     fileMetadataRepository.save(fileMetadata);
+    logger.info("File uploaded: id={}, fileName={}", uuid, originalFileName);
 
     return new FileMetadataResponse(
         uuid,
@@ -83,12 +88,14 @@ public class LocalFileSystemStorageService implements StorageService {
     } catch (IOException e) {
       throw new RuntimeException("Failed to delete file with id: " + id, e);
     }
+    logger.info("File deleted: id={}", id);
   }
 
   @Override
   public FileMetadataResponse getMetadata(UUID id) {
     FileMetadata fileMetadata =
         fileMetadataRepository.findById(id).orElseThrow(() -> new FileNotFoundException(id));
+    logger.info("Metadata retrieved: id={}, fileName={}", id, fileMetadata.getFileName());
 
     return new FileMetadataResponse(
         fileMetadata.getId(),
@@ -102,6 +109,7 @@ public class LocalFileSystemStorageService implements StorageService {
   public InputStream downloadFile(UUID id) {
 
     fileMetadataRepository.findById(id).orElseThrow(() -> new FileNotFoundException(id));
+    logger.info("File download initiated: id={}", id);
 
     Path targetPath = storageLocation.resolve(id.toString());
     if (!Files.exists(targetPath)) {

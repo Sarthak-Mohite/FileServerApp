@@ -2,6 +2,8 @@ package com.sarthak.FileServer.exception;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import io.github.resilience4j.ratelimiter.RateLimiter;
+import io.github.resilience4j.ratelimiter.RequestNotPermitted;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
@@ -29,5 +31,16 @@ public class GlobalExceptionHandlerTest {
 
     assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
     assertEquals("Invalid file type: text/plain", response.getBody().getDetail());
+  }
+
+  @Test
+  public void handleRateLimitException_returnsTooManyRequests() {
+    RequestNotPermitted ex =
+        RequestNotPermitted.createRequestNotPermitted(RateLimiter.ofDefaults("testLimiter"));
+
+    ResponseEntity<ProblemDetail> response = handler.handleRateLimitException(ex);
+
+    assertEquals(HttpStatus.TOO_MANY_REQUESTS, response.getStatusCode());
+    assertEquals("Rate limit exceeded", response.getBody().getDetail());
   }
 }

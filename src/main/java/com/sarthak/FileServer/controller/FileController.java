@@ -3,6 +3,7 @@ package com.sarthak.FileServer.controller;
 import com.sarthak.FileServer.dto.FileMetadataResponse;
 import com.sarthak.FileServer.exception.InvalidFileException;
 import com.sarthak.FileServer.service.StorageService;
+import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
 import java.io.InputStream;
 import java.util.Set;
 import java.util.UUID;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+@RateLimiter(name = "fileController")
 @RestController
 @RequestMapping("/api/v1/files")
 public class FileController {

@@ -3,8 +3,6 @@ package com.sarthak.FileServer.service;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.mock;
 
 import com.sarthak.FileServer.dto.FileMetadataResponse;
 import com.sarthak.FileServer.entity.FileMetadata;
@@ -12,6 +10,7 @@ import com.sarthak.FileServer.exception.FileNotFoundException;
 import com.sarthak.FileServer.repository.FileMetadataRepository;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Path;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
@@ -27,6 +26,7 @@ import org.springframework.web.multipart.MultipartFile;
 public class LocalFileSystemStorageServiceTest {
 
   @Mock private FileMetadataRepository fileMetadataRepository;
+  @Mock private FileByteCacheService fileByteCacheService;
 
   @InjectMocks private LocalFileSystemStorageService storageService;
 
@@ -143,6 +143,7 @@ public class LocalFileSystemStorageServiceTest {
             uploaded.size(),
             uploaded.uploadDate());
     when(fileMetadataRepository.findById(uploaded.id())).thenReturn(Optional.of(metadata));
+    when(fileByteCacheService.readBytes(any(Path.class))).thenReturn("some-bytes".getBytes());
 
     InputStream result = storageService.downloadFile(uploaded.id());
 

@@ -15,6 +15,8 @@ import java.util.Objects;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
@@ -22,6 +24,12 @@ import org.springframework.web.multipart.MultipartFile;
 @Service
 public class LocalFileSystemStorageService implements StorageService {
   private final Path storageLocation = Path.of(System.getProperty("user.dir"), "files");
+
+  public LocalFileSystemStorageService(
+      FileMetadataRepository fileMetadataRepository, FileByteCacheService fileByteCacheService) {
+    this.fileMetadataRepository = fileMetadataRepository;
+    this.fileByteCacheService = fileByteCacheService;
+  }
 
   @PostConstruct
   public void init() {
@@ -33,10 +41,7 @@ public class LocalFileSystemStorageService implements StorageService {
   }
 
   private final FileMetadataRepository fileMetadataRepository;
-
-  public LocalFileSystemStorageService(FileMetadataRepository fileMetadataRepository) {
-    this.fileMetadataRepository = fileMetadataRepository;
-  }
+  private final FileByteCacheService fileByteCacheService;
 
   private static final Logger logger = LoggerFactory.getLogger(LocalFileSystemStorageService.class);
 
@@ -79,6 +84,7 @@ public class LocalFileSystemStorageService implements StorageService {
   }
 
   @Override
+  @CacheEvict(value = "fileMetadata", key = "#id")
   public void deleteFile(UUID id) {
     fileMetadataRepository.findById(id).orElseThrow(() -> new FileNotFoundException(id));
     fileMetadataRepository.deleteById(id);
@@ -88,10 +94,12 @@ public class LocalFileSystemStorageService implements StorageService {
     } catch (IOException e) {
       throw new RuntimeException("Failed to delete file with id: " + id, e);
     }
+    fileByteCacheService.evictCache(targetPath);
     logger.info("File deleted: id={}", id);
   }
 
   @Override
+  @Cacheable(value = "fileMetadata", key = "#id")
   public FileMetadataResponse getMetadata(UUID id) {
     FileMetadata fileMetadata =
         fileMetadataRepository.findById(id).orElseThrow(() -> new FileNotFoundException(id));
@@ -116,7 +124,8 @@ public class LocalFileSystemStorageService implements StorageService {
       throw new FileNotFoundException(id);
     }
     try {
-      return Files.newInputStream(targetPath);
+      byte[] bytes = fileByteCacheService.readBytes(targetPath);
+      return new java.io.ByteArrayInputStream(bytes);
     } catch (IOException e) {
       throw new RuntimeException("Failed to download file with id: " + id, e);
     }

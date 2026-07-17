@@ -60,7 +60,7 @@ public class LocalFileSystemStorageService implements StorageService {
 
     try {
       file.transferTo(targetPath);
-      ;
+
     } catch (IOException e) {
       throw new RuntimeException("Failed to upload file" + originalFileName, e);
     }

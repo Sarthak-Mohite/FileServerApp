@@ -18,6 +18,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -72,7 +73,21 @@ public class LocalFileSystemStorageService implements StorageService {
     fileMetadata.setSize(file.getSize());
     fileMetadata.setUploadDate(Instant.now());
 
-    fileMetadataRepository.save(fileMetadata);
+    try {
+      fileMetadataRepository.save(fileMetadata);
+    } catch (Exception e) {
+      try {
+        Files.deleteIfExists(targetPath);
+      } catch (IOException cleanupException) {
+        logger.error(
+            "Failed to clean up orphaned file after DB save failure: id={}",
+            uuid,
+            cleanupException);
+      }
+      throw new RuntimeException(
+          "Failed to save file metadata, upload rolled back for id: " + uuid, e);
+    }
+
     logger.info("File uploaded: id={}, fileName={}", uuid, originalFileName);
 
     return new FileMetadataResponse(
@@ -85,6 +100,7 @@ public class LocalFileSystemStorageService implements StorageService {
 
   @Override
   @CacheEvict(value = "fileMetadata", key = "#id")
+  @Transactional
   public void deleteFile(UUID id) {
     fileMetadataRepository.findById(id).orElseThrow(() -> new FileNotFoundException(id));
     fileMetadataRepository.deleteById(id);
